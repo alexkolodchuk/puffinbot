@@ -20,6 +20,11 @@ class Puffinbot(commands.Bot):
             self.players[guild.id] = player
         return player
     
+    def hasPlayer(self, guild):
+        if guild.id not in self.players.keys():
+            return False
+        return True
+    
 bot = Puffinbot()
 
 # 2. Описать все события, обрабатываемые ботом
@@ -55,18 +60,28 @@ async def on_raw_reaction_remove(payload):
 # Не музыкальные команды
 bot.remove_command('help')
 
-@bot.command(name='help')
+@bot.command(name='help', aliases=['помощь'])
 async def help(ctx, *args):
     await ctx.send('''
+**Параметры**
+    `преф`
 **Модерация**
-    `rr`
+    `рр`, `пред`
 **Музыка**
-    `вкл`, `выкл`, `скип`, `ряд`''')
+    `вкл`, `выкл`, `скип`, `ряд`, `громкость`, `повтор`, `алиас`''')
+    
+    
+@bot.command(name='преф', aliases=['pref'])
+async def pref(ctx, *args):
+    if len(args)==0:
+        await ctx.send('`'+prefs['prefix']+'`')
+    else:
+        prefs['prefix'] = ' '.join(args)
 
-@bot.command(name='rr')
+@bot.command(name='рр', aliases=['rr'])
 async def rr(ctx, *args):
-    if len(args) not in [1, 4]: return
-    if args[0]=='list':
+    if len(args) not in [0, 4]: return
+    if len(args)==0:
         msg = '\n'.join(['https://discord.com/channels/'+'/'.join(i[:3])+' - <:'+i[3]+':'+i[4]+'> <@&'+i[5]+'>' for i in prefs['rr']])
         if msg=='': await ctx.send('Нет реакционных ролей')
         else: await ctx.send(msg)
@@ -75,18 +90,21 @@ async def rr(ctx, *args):
     new = [args[1].split('/')[4], args[1].split('/')[5],
            args[1].split('/')[6], args[2].split(":")[1], args[2].split(":")[2][:-1], 
            args[3][3:-1]]
-    if args[0]=='add':
+    if args[0]=='+':
         prefs['rr'].append(new)
         writef(prefs)
-    elif args[0]=='del':
+    elif args[0]=='-':
         if new in prefs['rr']:
             prefs['rr'].remove(new)
         writef(prefs)
     print(args, prefs)
 
-@bot.command(name='sg')
+@bot.command(name='пред', aliases=['sugg'])
 async def sg(ctx, *args):
-    if len(args)!=1: return
+    if len(args)!=1:
+        await ctx.send('''Использование:
+`'''+prefs['prefix']+'''пред айдиКанала` - установить айди канала предложений
+# WIP''')
     try:
         prefs['sgchannel'] = str(int(args[0]))
         writef(prefs)
@@ -94,43 +112,89 @@ async def sg(ctx, *args):
     except: return
 
 
-@bot.command(name='вкл')
+@bot.command(name='вкл', aliases=['play'])
 async def on(ctx, *args):
     url = ' '.join(args)
+        
+    aliases = get_aliases()
+    
     if url=='':
-        url = 'https://dj.bronyradio.com/streamhq.mp3'
+        await ctx.send('''
+Использование команды:
+`'''+prefs['prefix']+'''вкл ссылка-на-ютуб-видео` - добавить видео/стрим в очередь
+`'''+prefs['prefix']+'''вкл алиас` - добавить ссылку под алиасом
+`'''+prefs['prefix']+'''вкл ссылка-на-файл` - добавить файл/аудиострим в очередь
+`'''+prefs['prefix']+'''вкл всё-остальное` - добавить первое ютуб-видео по поиску всё-остальное''')
+        return
+        
     player = bot.getPlayer(ctx.guild, ctx.author.voice.channel)
-    if not url.startswith('http'): # this is a YT search and needs to be parsed
+
+    if url in aliases.keys():
+        url = aliases[url]
+    elif not url.startswith('http'):
         url = get_yt_url(url)
     await player.add(url)
     await success(ctx)
 
-@bot.command(name='выкл')
+@bot.command(name='выкл', aliases=['stop'])
 async def off(ctx):
     player = bot.getPlayer(ctx.guild, ctx.author.voice.channel)
     await player.kill()
     await success(ctx)
     
-@bot.command(name='скип')
-async def skip(ctx):
+@bot.command(name='скип', aliases=['skip'])
+async def skip(ctx, *args):
+    if len(args)==0:
+        cnt = 1
+    else:
+        cnt = int(args[0])
     player = bot.getPlayer(ctx.guild, ctx.author.voice.channel)
-    await player.skip()
+    for i in range(0, cnt):
+        await player.skip()
     await success(ctx)
     
-@bot.command(name='ряд')
+@bot.command(name='ряд', aliases=['queue'])
 async def queue(ctx):
+    if not bot.hasPlayer(ctx.guild):
+        return
     player = bot.getPlayer(ctx.guild, ctx.author.voice.channel)
     await ctx.send('**Сейчас играет: [`'+player.rn['title']+'`]('+player.rn['url']+')**\nДалее:\n'+'\n'.join(['**'+str(i+1)+'**: [`'+player.queue[i]['title']+'`]('+player.queue[i]['url']+')' for i in range(0, len(player.queue))]))
-    open('data.txt', 'w').write('\n'.join(x+'\n'+y+'\n\n' for x, y in zip(player.rn.keys(), map(str, player.rn.values()))))
     await success(ctx)
 
-@bot.command(name='повтор')
+@bot.command(name='громкость', aliases=['volume'])
+async def queue(ctx, *volume):
+    if len(volume)==0:
+        await ctx.send('''Использование:
+`'''+prefs['prefix']+'''громкость n` - установить громкость n% от максимальной''')
+        return
+    player = bot.getPlayer(ctx.guild, ctx.author.voice.channel)
+    player.vc.source.volume = int(volume[0])/100
+
+@bot.command(name='повтор', aliases=['repeat'])
 async def repeat(ctx):
     player = bot.getPlayer(ctx.guild, ctx.author.voice.channel)
     player.repeat = not player.repeat
     await ctx.send('Повтор в'+'ы'*(not player.repeat)+'ключен')
 
-@bot.command(name='дебаг')
+@bot.command(name='алиас', aliases=['alias'])
+async def alias(ctx, *args):
+    if len(args)==0:
+        await ctx.send('''Использование:
+`'''+prefs['prefix']+'''алиас вывод` - вывести все алиасы
+`'''+prefs['prefix']+'''алиас + выражение1;выражение2` - создать новый алиас "выражение1"
+`'''+prefs['prefix']+'''алиас - выражение1` - убрать алиас "выражение1"''')
+        return
+    al = ' '.join(args[1:])
+    if args[0]=='+':
+        add_alias(al.split(';')[0], al.split(';')[1])
+    elif args[0]=='-':
+        remove_alias(al.split(';')[0])
+    elif args[0]=='вывод':
+        aliases = get_aliases()
+        await ctx.send(', '.join(['[`'+k+'`]('+aliases[k]+')' for k in aliases.keys()]))
+    await success(ctx)
+
+@bot.command(name='дебаг', aliases=['debug'])
 async def debug(ctx):
     print(bot.players)
 
@@ -186,10 +250,8 @@ class Player:
         self.vc.stop()
         bot.loop.call_soon_threadsafe(self.next.set)
     
-    def play(self, data):
-        self.vc.play(discord.FFmpegPCMAudio(data["url"], options='-vn'),
-                     after=lambda _: bot.loop.call_soon_threadsafe(self.next.set))
-        self.vc.source.volume = .5
+    def play(self, data, offset=0):
+        self.vc.play(discord.FFmpegPCMAudio(data["url"], options='-vn', before_options='-ss '+str(offset)), after=lambda _: bot.loop.call_soon_threadsafe(self.next.set))
 
 # 3. Запустить бота
 bot.run(open('token.txt').read())

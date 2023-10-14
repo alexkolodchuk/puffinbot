@@ -1,6 +1,6 @@
 # Утилитарные функции
-import yt_dlp, asyncio, requests
-from bs4 import BeautifulSoup
+import yt_dlp, asyncio
+from youtubesearchpython import VideosSearch
 
 def writef(prefs):
     with open('prefs.txt', 'w') as f:
@@ -20,7 +20,7 @@ def readf():
             prefs['rr'] = [i.split(',') for i in t[3:]]
     except FileNotFoundError:
         prefs = {'servers': ['1160681427227127949'],
-                 'prefix': '~',
+                 'prefix': 'ы',
                  'sgchannel': '1160699169531494512',
                  'rr': []}
         writef(prefs)
@@ -29,13 +29,34 @@ def readf():
 def get_data(url):
     return yt_dlp.YoutubeDL({'format': 'bestaudio/best'}).extract_info(url, download=False)
 
-#WIP
-def get_yt_url(search):
-    return search
-
 async def success(ctx):
     await ctx.message.add_reaction('👍')
     await asyncio.sleep(2)
     await ctx.message.clear_reaction('👍')
+
+def get_yt_url(search):
+    videosSearch = VideosSearch(search, limit = 1)
+    return videosSearch.result()['result'][0]['link']
+
+# Работа с алиасами
+def get_aliases():
+    aliases = dict()
+    for line in open('aliases.txt').read().split('\n'):
+        aliases[line.split(';')[0]] = line.split(';')[1]
+    return aliases
+
+def write_aliases(aliases):
+    with open('aliases.txt', 'w') as f:
+        f.write('\n'.join([k+';'+aliases[k] for k in aliases.keys()]))
+
+def add_alias(alias1, alias2):
+    aliases = get_aliases()
+    aliases[alias1] = alias2
+    write_aliases(aliases)
+
+def remove_alias(alias1):
+    aliases = get_aliases()
+    del aliases[alias1]
+    write_aliases(aliases)
 
 print(readf())
