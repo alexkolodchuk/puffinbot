@@ -68,7 +68,14 @@ async def help(ctx, *args):
 **Модерация**
     `рр`, `пред`
 **Музыка**
-    `вкл`, `выкл`, `скип`, `ряд`, `громкость`, `повтор`, `алиас`''')
+    `вкл`, `выкл`, `скип`, `ряд`, `громкость`, `повтор`, `алиас`
+    
+**Settings**
+    `pref`
+**Moderation**
+    `rr`, `sugg`
+**Music**
+    `play`, `stop`, `skip`, `queue`, `volume`, `repeat`, `alias`''')
     
     
 @bot.command(name='преф', aliases=['pref'])
@@ -214,6 +221,7 @@ class Player:
         self.channel = channel
         self.rn = None
         self.repeat = False
+        self.repflag = False
         
         bot.loop.create_task(self.player_loop())
 
@@ -229,9 +237,10 @@ class Player:
         self.vc = await self.channel.connect()
         
         while True:
+            if self.repeat and not self.vc.is_playing():
+                print('repeating')
+                await self.add(self.rn['url'])
             song_data = await self.qget()
-            if self.repeat:
-                self.queue.append(song_data)
             self.play(song_data)
             self.rn = song_data
             await self.next.wait()
@@ -243,7 +252,7 @@ class Player:
     async def move(self, channel):
         await self.vc.move_to(channel)
     
-    async def add(self, url):
+    async def add(self, url, offset=0):
         self.queue.append(get_data(url))
         
     async def skip(self):
