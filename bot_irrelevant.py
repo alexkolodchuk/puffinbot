@@ -29,10 +29,10 @@ async def on_ready():
 
 @bot.event
 async def on_message(msg):
-    if str(msg.guild.id) in prefs['servers']:
+    '''if msg.guild.name in prefs['servers']:
         if msg.channel.id == int(prefs['sgchannel']):
             await msg.add_reaction('thumbsup')
-            await msg.add_reaction('thumbsdown')
+            await msg.add_reaction('thumbsdown')'''
     await bot.process_commands(msg)
 
 @bot.event
@@ -58,10 +58,19 @@ bot.remove_command('help')
 @bot.command(name='help')
 async def help(ctx, *args):
     await ctx.send('''
-**Модерация**
-    `rr`
-**Музыка**
-    `вкл`, `выкл`, `скип`, `ряд`''')
+**`rr` - добавление или удаление реакционной роли.**
+    `rr add <Message-ссылка> <Emoji> <Role>`
+    `rr del <Message-ссылка> <Emoji> <Role>`
+    `rr list`
+**`sg` - настройка предложения**
+    `sg channel <Channel>`
+    `sg block <User>
+**музыка**
+    `вкл <YT-ссылка>`
+    `выкл`
+    `вперёд`
+    `назад`
+    `очередь`''')
 
 @bot.command(name='rr')
 async def rr(ctx, *args):
@@ -95,40 +104,26 @@ async def sg(ctx, *args):
 
 
 @bot.command(name='вкл')
-async def on(ctx, *args):
-    url = ' '.join(args)
-    if url=='':
-        url = 'https://dj.bronyradio.com/streamhq.mp3'
+async def on(ctx, url='https://dj.bronyradio.com/streamhq.mp3'):
     player = bot.getPlayer(ctx.guild, ctx.author.voice.channel)
-    if not url.startswith('http'): # this is a YT search and needs to be parsed
-        url = get_yt_url(url)
     await player.add(url)
-    await success(ctx)
 
 @bot.command(name='выкл')
 async def off(ctx):
     player = bot.getPlayer(ctx.guild, ctx.author.voice.channel)
     await player.kill()
-    await success(ctx)
+    await ctx.message.add_reaction('👍')
+    await ctx.message.clear_reaction('👍')
     
 @bot.command(name='скип')
 async def skip(ctx):
     player = bot.getPlayer(ctx.guild, ctx.author.voice.channel)
     await player.skip()
-    await success(ctx)
+    await ctx.message.add_reaction('thumbsup')
     
 @bot.command(name='ряд')
 async def queue(ctx):
-    player = bot.getPlayer(ctx.guild, ctx.author.voice.channel)
-    await ctx.send('**Сейчас играет: [`'+player.rn['title']+'`]('+player.rn['url']+')**\nДалее:\n'+'\n'.join(['**'+str(i+1)+'**: [`'+player.queue[i]['title']+'`]('+player.queue[i]['url']+')' for i in range(0, len(player.queue))]))
-    open('data.txt', 'w').write('\n'.join(x+'\n'+y+'\n\n' for x, y in zip(player.rn.keys(), map(str, player.rn.values()))))
-    await success(ctx)
-
-@bot.command(name='повтор')
-async def repeat(ctx):
-    player = bot.getPlayer(ctx.guild, ctx.author.voice.channel)
-    player.repeat = not player.repeat
-    await ctx.send('Повтор в'+'ы'*(not player.repeat)+'ключен')
+    pass
 
 @bot.command(name='дебаг')
 async def debug(ctx):
@@ -144,32 +139,19 @@ async def debug(ctx):
 # move - переместить бота в другой гк
 class Player:
     def __init__(self, channel):
-        self.queue = []
+        self.queue = asyncio.Queue()
         self.next = asyncio.Event()
         self.vc = None
         self.channel = channel
-        self.rn = None
-        self.repeat = False
         
         bot.loop.create_task(self.player_loop())
-
-    # Queue funcs
-    async def qget(self):
-        while True:
-            try:
-                return self.queue.pop(0)
-            except IndexError:
-                await asyncio.sleep(0.01)
 
     async def player_loop(self):
         self.vc = await self.channel.connect()
         
         while True:
-            song_data = await self.qget()
-            if self.repeat:
-                self.queue.append(song_data)
-            self.play(song_data)
-            self.rn = song_data
+            song_data = await self.queue.get()
+            await self.play(song_data)
             await self.next.wait()
 
     async def kill(self):
@@ -180,13 +162,13 @@ class Player:
         await self.vc.move_to(channel)
     
     async def add(self, url):
-        self.queue.append(get_data(url))
+        await self.queue.put(get_data(url))
         
-    async def skip(self):
+    def skip(self):
         self.vc.stop()
         bot.loop.call_soon_threadsafe(self.next.set)
     
-    def play(self, data):
+    async def play(self, data):
         self.vc.play(discord.FFmpegPCMAudio(data["url"], options='-vn'),
                      after=lambda _: bot.loop.call_soon_threadsafe(self.next.set))
         self.vc.source.volume = .5
