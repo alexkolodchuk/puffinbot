@@ -1,4 +1,5 @@
-*.txt
+prefs.txt
+token.txt
 __pycache__
 wip.py
 bot_unworkingmusic.py

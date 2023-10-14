@@ -1,0 +1,9 @@
+PonyvilleFM;https://dj.bronyradio.com/streamhq.mp3
+Alicorn Radio;http://104.254.246.227/radio/8000/radio.mp3
+Celestia Radio;http://celestia.aiverse.org:8000/stream
+Radio Brony;https://radiobrony.live/mp3
+Brony Radio Germany;http://radio.bronyradiogermany.com:8000/opus
+PowerPonies Radio;http://radio.powerponies.cz:8000/stream?sid=1
+Radio Alterpony.ru;http://radio.alterpony.ru/320
+LasPegasusFM;https://icecast.laspegas.us/ari
+FancyNoise Radio;http://fancynoise.net:8000/vorbishq
