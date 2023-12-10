@@ -39,24 +39,24 @@ def get_yt_url(search):
     return videosSearch.result()['result'][0]['link']
 
 # Работа с алиасами
-def get_aliases():
+def get_aliases(filename):
     aliases = dict()
-    for line in open('aliases.txt').read().split('\n'):
+    for line in open(filename).read().split('\n'):
         aliases[line.split(';')[0]] = line.split(';')[1]
     return aliases
 
-def write_aliases(aliases):
-    with open('aliases.txt', 'w') as f:
+def write_aliases(aliases, filename):
+    with open(filename, 'w') as f:
         f.write('\n'.join([k+';'+aliases[k] for k in aliases.keys()]))
 
 def add_alias(alias1, alias2):
-    aliases = get_aliases()
+    aliases = get_aliases('aliases.txt')
     aliases[alias1] = alias2
-    write_aliases(aliases)
+    write_aliases(aliases, 'aliases.txt')
 
 def remove_alias(alias1):
-    aliases = get_aliases()
+    aliases = get_aliases('aliases.txt')
     del aliases[alias1]
-    write_aliases(aliases)
-
+    write_aliases(aliases, 'aliases.txt')
+    
 print(readf())

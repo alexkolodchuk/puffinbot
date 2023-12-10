@@ -25,19 +25,25 @@ class Puffinbot(commands.Bot):
             return False
         return True
     
+    def process_suggestions(self):
+        #WIP
+        while True:
+            pass
+    
 bot = Puffinbot()
 
 # 2. Описать все события, обрабатываемые ботом
 @bot.event
 async def on_ready():
     print("Тупикbot ожил")
+    #bot.loop.create_task(bot.process_suggestions())
 
 @bot.event
 async def on_message(msg):
     if str(msg.guild.id) in prefs['servers']:
         if msg.channel.id == int(prefs['sgchannel']):
             await msg.add_reaction('thumbsup')
-            await msg.add_reaction('thumbsdown')
+            await msg.add_reaction('thumbsdown')      
     await bot.process_commands(msg)
 
 @bot.event
@@ -46,7 +52,7 @@ async def on_raw_reaction_add(payload):
         if int(x[2]) == payload.message_id and int(x[4]) == payload.emoji.id:
             await payload.member.add_roles(discord.utils.find(lambda y: y.id == int(x[5]),
                                                               payload.member.guild.roles))
-
+    
 @bot.event
 async def on_raw_reaction_remove(payload):
     for x in prefs['rr']:
@@ -123,7 +129,7 @@ async def sg(ctx, *args):
 async def on(ctx, *args):
     url = ' '.join(args)
         
-    aliases = get_aliases()
+    aliases = get_aliases('aliases.txt')
     
     if url=='':
         await ctx.send('''
@@ -197,7 +203,7 @@ async def alias(ctx, *args):
     elif args[0]=='-':
         remove_alias(al.split(';')[0])
     elif args[0]=='вывод':
-        aliases = get_aliases()
+        aliases = get_aliases('aliases.txt')
         await ctx.send(', '.join(['[`'+k+'`]('+aliases[k]+')' for k in aliases.keys()]))
     await success(ctx)
 
@@ -260,7 +266,7 @@ class Player:
         bot.loop.call_soon_threadsafe(self.next.set)
     
     def play(self, data, offset=0):
-        self.vc.play(discord.FFmpegPCMAudio(data["url"], options='-vn', before_options='-ss '+str(offset)), after=lambda _: bot.loop.call_soon_threadsafe(self.next.set))
+        self.vc.play(discord.FFmpegOpusAudio(data["url"], options='-vn', before_options='-reconnect 1 -ss '+str(offset)), after=lambda _: bot.loop.call_soon_threadsafe(self.next.set))
 
 # 3. Запустить бота
 bot.run(open('token.txt').read())
